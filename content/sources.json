@@ -1,0 +1,6 @@
+[
+  { "path": "content/bio.md", "type": "bio", "title": "About" },
+  { "path": "content/resume.md", "type": "resume", "title": "Resume" },
+  { "path": "content/projects/project-one.md", "type": "project", "title": "Project One" },
+  { "path": "content/blog/post-one.md", "type": "blog", "title": "Blog Post One" }
+]
