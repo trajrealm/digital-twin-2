@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'visitor' | 'assistant' | 'author_live';
@@ -19,6 +21,7 @@ export default function EmbedWidget() {
   const [escalating, setEscalating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const supabaseRef = useRef<any>(null);
   const presenceRef = useRef<any>(null);
 
@@ -161,6 +164,10 @@ export default function EmbedWidget() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Auto-focus input after messages are added (unless escalation is showing)
+    if (!showEscalation && inputRef.current) {
+      inputRef.current.focus();
+    }
   }, [messages, showEscalation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -220,6 +227,7 @@ export default function EmbedWidget() {
         body: JSON.stringify({
           conversationId,
           visitorEmail: visitorEmail.trim(),
+          sessionId,
         }),
       });
 
@@ -271,7 +279,26 @@ export default function EmbedWidget() {
                   : 'bg-gray-200 text-gray-900'
               }`}
             >
-              <p className="text-sm">{msg.content}</p>
+              <div className="text-sm prose prose-sm max-w-none dark:prose-invert
+                prose-p:m-0 prose-p:leading-relaxed
+                prose-strong:font-semibold
+                prose-em:italic
+                prose-ul:my-1 prose-ul:pl-4
+                prose-li:my-0
+                prose-code:bg-gray-300 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                prose-pre:bg-gray-800 prose-pre:text-white prose-pre:p-2 prose-pre:rounded prose-pre:overflow-x-auto prose-pre:text-xs
+                break-words
+              ">
+                {msg.role === 'visitor' ? (
+                  // Visitor messages: plain text
+                  msg.content
+                ) : (
+                  // Assistant and author_live: render markdown
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -285,8 +312,22 @@ export default function EmbedWidget() {
         {showEscalation && (
           <div className="flex justify-start">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-w-xs">
+              <div className="flex justify-between items-start mb-2">
+                <p className="text-sm font-semibold text-gray-900">Escalate to Author</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEscalation(false);
+                    setVisitorEmail('');
+                  }}
+                  className="text-gray-500 hover:text-gray-700 text-lg leading-none"
+                  title="Close escalation"
+                >
+                  ×
+                </button>
+              </div>
               <p className="text-sm text-gray-900 mb-3">
-                Please provide your email and I'll escalate this question to the author.
+                I couldn't confidently answer this. Provide your email and I'll have the author reply.
               </p>
               <form onSubmit={handleEscalate} className="space-y-2">
                 <input
@@ -298,13 +339,26 @@ export default function EmbedWidget() {
                   disabled={escalating}
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-                <button
-                  type="submit"
-                  disabled={escalating || !visitorEmail.trim()}
-                  className="w-full px-2 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {escalating ? 'Sending...' : 'Escalate'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={escalating || !visitorEmail.trim()}
+                    className="flex-1 px-2 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {escalating ? 'Sending...' : 'Escalate'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEscalation(false);
+                      setVisitorEmail('');
+                    }}
+                    disabled={escalating}
+                    className="flex-1 px-2 py-1 bg-gray-300 text-gray-900 rounded text-sm font-medium hover:bg-gray-400 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -316,6 +370,7 @@ export default function EmbedWidget() {
       <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3 bg-white">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

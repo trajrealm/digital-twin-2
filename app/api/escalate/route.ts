@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { checkEscalateRateLimit } from '@/lib/rate-limit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,13 +13,14 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 interface EscalateRequest {
   conversationId: string;
   visitorEmail: string;
+  sessionId: string;
   honeypot?: string;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: EscalateRequest = await request.json();
-    const { conversationId, visitorEmail, honeypot } = body;
+    const { conversationId, visitorEmail, sessionId, honeypot } = body;
 
     // Honeypot: silently fail if populated
     if (honeypot && honeypot.trim().length > 0) {
@@ -28,9 +30,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!conversationId || !visitorEmail) {
+    if (!conversationId || !visitorEmail || !sessionId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Check rate limit (3 requests per hour per sessionId)
+    const rateLimitResult = await checkEscalateRateLimit(sessionId);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'You have escalated too many questions. Please wait before escalating again.' },
+        { status: 429 }
+      );
+    }
+
+    // Validate email length
+    if (visitorEmail.length > 255) {
+      return NextResponse.json(
+        { error: 'Email address too long' },
         { status: 400 }
       );
     }
