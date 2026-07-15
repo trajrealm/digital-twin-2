@@ -108,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Send email to visitor
       await resend.emails.send({
-        from: 'noreply@resend.dev',
+        from: process.env.NOTIFY_EMAIL!,
         to: conversation.visitor_email,
         subject: `Reply to Your Question`,
         html: `

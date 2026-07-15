@@ -106,7 +106,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Send email to author
     const emailResult = await resend.emails.send({
-      from: 'noreply@resend.dev',
+      from: process.env.NOTIFY_EMAIL!,
       to: process.env.NOTIFY_EMAIL!,
       subject: `New Escalation: Unanswered Question`,
       html: `
