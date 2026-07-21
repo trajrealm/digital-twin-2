@@ -5,6 +5,18 @@ import { createClient } from '@supabase/supabase-js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Custom link component to open in new tab
+const LinkComponent = ({ href, children }: any) => (
+  <a 
+    href={href} 
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="text-blue-600 hover:underline"
+  >
+    {children}
+  </a>
+);
+
 interface Message {
   role: 'visitor' | 'assistant' | 'author_live';
   content: string;
@@ -329,7 +341,10 @@ export default function EmbedWidget({
                     msg.content
                   ) : (
                     // Assistant and author_live: render markdown
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{ a: LinkComponent }}
+                    >
                       {msg.content}
                     </ReactMarkdown>
                   )}
