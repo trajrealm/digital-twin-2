@@ -363,7 +363,7 @@ export default function EmbedWidget({
                 </button>
               </div>
               <p className="text-sm text-gray-900 mb-3">
-                I couldn't confidently answer this. Provide your email and I'll have {authorFirstName} reply.
+                Provide your email and I'll have {authorFirstName} reply.
               </p>
               <form onSubmit={handleEscalate} className="space-y-2">
                 <input
