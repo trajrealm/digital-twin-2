@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import { OpenAI } from 'openai';
 import { QdrantClient, PointStruct } from '@qdrant/js-client-rest';
 import { createHash } from 'crypto';
-
+import matter from 'gray-matter';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -12,6 +12,7 @@ const openai = new OpenAI({
 const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL,
   apiKey: process.env.QDRANT_API_KEY,
+  checkCompatibility: false,
 });
 
 interface Source {
@@ -28,13 +29,21 @@ interface Chunk {
   text: string;
 }
 
+interface FrontmatterMeta {
+  company?: string;
+  role?: string;
+  start_date?: string;
+  end_date?: string;
+  tags?: string[];
+}
+
 // Simple tokenizer (rough estimation - ~4 chars per token)
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
 // Split text into chunks by paragraph, then group paragraphs into chunks
-function chunkText(text: string, targetChunkSize = 1000): string[] {
+function chunkText(text: string, targetChunkSize = 600): string[] {
   // Split by double newlines (paragraph boundaries)
   const paragraphs = text.split(/\n\n+/).filter((p) => p.trim().length > 0);
 
@@ -66,6 +75,19 @@ function chunkText(text: string, targetChunkSize = 1000): string[] {
 
 async function ingestSources() {
   try {
+    // Ensure payload indexes exist before filtering/deleting by these fields
+    const keywordFields = ['source_id', 'type', 'company'];
+    for (const field of keywordFields) {
+      try {
+        await qdrant.createPayloadIndex('knowledge_chunks', {
+          field_name: field,
+          field_schema: 'keyword',
+        });
+      } catch (err: any) {
+        if (!err?.message?.includes('already exists')) throw err;
+      }
+    }
+
     console.log('Reading sources manifest...');
     const manifestPath = resolve('content/sources.json');
     const manifest: Source[] = JSON.parse(readFileSync(manifestPath, 'utf-8'));
@@ -85,8 +107,22 @@ async function ingestSources() {
         continue;
       }
 
-      // Split into chunks
-      const chunks = chunkText(content);
+      // Parse and strip YAML frontmatter (company, role, dates, tags)
+      const { data: frontmatter, content: body } = matter(content);
+      const meta: FrontmatterMeta = frontmatter;
+
+      // Delete any existing points for this source before re-ingesting,
+      // so a shrunk or restructured doc doesn't leave orphaned chunks behind
+      console.log(`  Deleting existing points for ${source.path}...`);
+      await qdrant.delete('knowledge_chunks', {
+        wait: true,
+        filter: {
+          must: [{ key: 'source_id', match: { value: source.path } }],
+        },
+      });
+
+      // Split into chunks (frontmatter-free body only)
+      const chunks = chunkText(body);
       console.log(`  Split into ${chunks.length} chunks`);
 
       // Generate embeddings and prepare points
@@ -119,6 +155,11 @@ async function ingestSources() {
             title: source.title,
             chunk_index: i,
             text: chunkText,
+            company: meta.company ?? null,
+            role: meta.role ?? null,
+            start_date: meta.start_date ?? null,
+            end_date: meta.end_date ?? null,
+            tags: meta.tags ?? [],
           },
         });
       }

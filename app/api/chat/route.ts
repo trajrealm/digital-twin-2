@@ -99,10 +99,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChatRespo
 
     const embedding = embeddingResponse.data[0].embedding;
 
-    // Search Qdrant for relevant chunks
+    // Search Qdrant for relevant chunks - increased limit to capture more context
     const searchResults = await qdrant.search('knowledge_chunks', {
       vector: embedding,
-      limit: 5,
+      limit: 10,
       with_payload: true,
       with_vectors: false,
     }) as any[];
