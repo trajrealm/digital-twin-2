@@ -104,7 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChatRespo
       vector: embedding,
       limit: 10,
       with_payload: true,
-      with_vectors: false,
+      with_vector: false,
     }) as any[];
 
     // Build context from retrieved chunks
