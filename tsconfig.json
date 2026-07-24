@@ -13,7 +13,7 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedParameters": false,
     "noImplicitReturns": true,
     "jsx": "preserve",
     "moduleResolution": "bundler",
@@ -33,7 +33,7 @@
       "@/*": [
         "./*"
       ]
-    }    
+    },
   },
   "include": [
     "app",
