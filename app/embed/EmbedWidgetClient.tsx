@@ -37,7 +37,6 @@ export default function EmbedWidget({
   const [showEscalation, setShowEscalation] = useState(false);
   const [visitorEmail, setVisitorEmail] = useState('');
   const [escalating, setEscalating] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string>('/images/avatar.jpeg');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,40 +66,6 @@ export default function EmbedWidget({
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
-
-  // Fetch avatar URL from Supabase with fallback to local
-  useEffect(() => {
-    const fetchAvatarUrl = async () => {
-      try {
-        // Try to get public URL from Supabase storage
-        const supabaseClient = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
-        
-        const { data } = supabaseClient
-          .storage
-          .from('digital-twin')
-          .getPublicUrl('avatar.jpeg');
-        
-        if (data?.publicUrl) {
-          // Verify the URL is valid by checking if the file exists
-          const response = await fetch(data.publicUrl, { method: 'HEAD' });
-          if (response.ok) {
-            setAvatarUrl(data.publicUrl);
-            return;
-          }
-        }
-      } catch {
-        // Fall back to local file
-      }
-      
-      // Use local file as default
-      setAvatarUrl('/images/avatar.jpeg');
-    };
-
-    fetchAvatarUrl();
   }, []);
 
   // Separate effect: re-attach beforeunload listener whenever conversationId/sessionId change
@@ -335,7 +300,7 @@ export default function EmbedWidget({
             {msg.role !== 'visitor' && (
               <div className="flex flex-col items-center gap-1">
                 <img
-                  src={avatarUrl}
+                  src="/images/avatar.jpeg"
                   alt="Author Avatar"
                   className={`w-8 h-8 rounded-full object-cover border border-gray-300 ${
                     msg.role === 'author_live' ? 'opacity-100' : 'opacity-75 brightness-75'
