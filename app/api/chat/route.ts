@@ -132,8 +132,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChatRespo
     })) || [];
 
     // Load and process system prompt from markdown file
-    const promptPath = join(process.cwd(), 'content', 'instructions.md');
-    let systemPromptTemplate = readFileSync(promptPath, 'utf-8');
+    let systemPromptTemplate: string;
+    
+    try {
+      // Try to load from Supabase storage first
+      const { data, error } = await supabase
+        .storage
+        .from('digital-twin')
+        .download('instructions.md');
+      
+      if (error) throw error;
+      
+      systemPromptTemplate = await data.text();
+    } catch {
+      // Fall back to local file
+      const promptPath = join(process.cwd(), 'content', 'instructions.md');
+      systemPromptTemplate = readFileSync(promptPath, 'utf-8');
+    }
     
     // Replace template variables with environment variables
     const systemPrompt = systemPromptTemplate
